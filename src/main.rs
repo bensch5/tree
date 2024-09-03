@@ -1,4 +1,4 @@
-use std::{any, env::args, fs::read_dir, io, path::Path};
+use std::{env::args, fs::read_dir, path::Path};
 
 use colored::Colorize;
 
@@ -12,25 +12,44 @@ fn main() {
         None => 3,
     };
     println!("{path}");
-    rec(Path::new(&path), 1, max_level)
+    // keep track of all the currently open directories
+    let open_dirs = vec![false; max_level];
+    rec(Path::new(&path), 0, max_level - 1, open_dirs)
 }
 
-fn rec(path: &Path, level: usize, max_level: usize) {
+fn rec(path: &Path, level: usize, max_level: usize, mut open_dirs: Vec<bool>) {
+    // set current directory to open
+    open_dirs[level] = true;
     // unwrap files
-    let files: Vec<_> = read_dir(path).unwrap().map(|e|e.unwrap()).collect();
+    let files: Vec<_> = read_dir(path).unwrap().map(|e| e.unwrap()).collect();
     for (i, file) in files.iter().enumerate() {
         let file_str = file.file_name().into_string().unwrap();
-        let seperator = match i {
-            any if any == files.len() - 1 => "└────── ",
-            _ => "├────── ",
-        };
+        let mut separator = "├────── ";
+        if i == files.len() - 1 {
+            // set current directory to closed
+            open_dirs[level] = false;
+            separator = "└────── ";
+        }
+        for j in 0..level {
+            if open_dirs[j] {
+                print!("│\t");
+            } else {
+                print!("\t");
+            }
+        }
+        print!("{separator}");
         if file.file_type().unwrap().is_dir() {
-            println!("{}{}", "\t".repeat(level - 1) + seperator, file_str.blue());
+            println!("{}", file_str.blue());
             if level < max_level {
-                rec(file.path().as_path(), level + 1, max_level);
+                rec(
+                    file.path().as_path(),
+                    level + 1,
+                    max_level,
+                    open_dirs.to_vec(),
+                );
             }
         } else {
-            println!("{}{}", "\t".repeat(level - 1) + seperator, file_str);
+            println!("{file_str}");
         }
     }
 }
